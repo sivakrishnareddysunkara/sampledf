@@ -1,0 +1,51 @@
+{
+	"name": "dataflow1",
+	"properties": {
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "Parquet1",
+						"type": "DatasetReference"
+					},
+					"name": "source1"
+				}
+			],
+			"sinks": [],
+			"transformations": [
+				{
+					"name": "derivedColumn1"
+				}
+			],
+			"scriptLines": [
+				"source(output(",
+				"          VendorID as long,",
+				"          tpep_pickup_datetime as timestamp,",
+				"          tpep_dropoff_datetime as timestamp,",
+				"          passenger_count as double,",
+				"          trip_distance as double,",
+				"          RatecodeID as double,",
+				"          store_and_fwd_flag as string,",
+				"          PULocationID as long,",
+				"          DOLocationID as long,",
+				"          payment_type as long,",
+				"          fare_amount as double,",
+				"          extra as double,",
+				"          mta_tax as double,",
+				"          tip_amount as double,",
+				"          tolls_amount as double,",
+				"          improvement_surcharge as double,",
+				"          total_amount as double,",
+				"          congestion_surcharge as double,",
+				"          airport_fee as integer",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: true,",
+				"     ignoreNoFilesFound: false,",
+				"     format: 'parquet') ~> source1",
+				"source1 derive(fare_amount = iff(fare_amount>10, \"fair\",\"loss\")) ~> derivedColumn1"
+			]
+		}
+	}
+}
