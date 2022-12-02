@@ -1,0 +1,276 @@
+{
+	"$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"type": "string",
+			"metadata": "Data Factory name",
+			"defaultValue": "sample-dev-dec"
+		},
+		"AzureBlobStorage1_connectionString": {
+			"type": "secureString",
+			"metadata": "Secure string for 'connectionString' of 'AzureBlobStorage1'"
+		}
+	},
+	"variables": {
+		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+	},
+	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/AzureBlobStorage1')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "AzureBlobStorage",
+				"typeProperties": {
+					"connectionString": "[parameters('AzureBlobStorage1_connectionString')]"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/Parquet1')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "AzureBlobStorage1",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "Parquet",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobStorageLocation",
+						"fileName": "yellow_tripdata_2020-01.parquet",
+						"container": "taxidata"
+					},
+					"compressionCodec": "snappy"
+				},
+				"schema": [
+					{
+						"name": "VendorID",
+						"type": "INT64"
+					},
+					{
+						"name": "tpep_pickup_datetime",
+						"type": "TIMESTAMP_MICROS"
+					},
+					{
+						"name": "tpep_dropoff_datetime",
+						"type": "TIMESTAMP_MICROS"
+					},
+					{
+						"name": "passenger_count",
+						"type": "DOUBLE"
+					},
+					{
+						"name": "trip_distance",
+						"type": "DOUBLE"
+					},
+					{
+						"name": "RatecodeID",
+						"type": "DOUBLE"
+					},
+					{
+						"name": "store_and_fwd_flag",
+						"type": "UTF8"
+					},
+					{
+						"name": "PULocationID",
+						"type": "INT64"
+					},
+					{
+						"name": "DOLocationID",
+						"type": "INT64"
+					},
+					{
+						"name": "payment_type",
+						"type": "INT64"
+					},
+					{
+						"name": "fare_amount",
+						"type": "DOUBLE"
+					},
+					{
+						"name": "extra",
+						"type": "DOUBLE"
+					},
+					{
+						"name": "mta_tax",
+						"type": "DOUBLE"
+					},
+					{
+						"name": "tip_amount",
+						"type": "DOUBLE"
+					},
+					{
+						"name": "tolls_amount",
+						"type": "DOUBLE"
+					},
+					{
+						"name": "improvement_surcharge",
+						"type": "DOUBLE"
+					},
+					{
+						"name": "total_amount",
+						"type": "DOUBLE"
+					},
+					{
+						"name": "congestion_surcharge",
+						"type": "DOUBLE"
+					},
+					{
+						"name": "airport_fee",
+						"type": "INT32"
+					}
+				]
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/AzureBlobStorage1')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/target')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "AzureBlobStorage1",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "Parquet",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobStorageLocation",
+						"container": "target"
+					},
+					"compressionCodec": "snappy"
+				},
+				"schema": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/AzureBlobStorage1')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/dataflow1')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"type": "MappingDataFlow",
+				"typeProperties": {
+					"sources": [
+						{
+							"dataset": {
+								"referenceName": "Parquet1",
+								"type": "DatasetReference"
+							},
+							"name": "source1"
+						}
+					],
+					"sinks": [
+						{
+							"dataset": {
+								"referenceName": "target",
+								"type": "DatasetReference"
+							},
+							"name": "sink1"
+						}
+					],
+					"transformations": [
+						{
+							"name": "derivedColumn1"
+						}
+					],
+					"scriptLines": [
+						"source(output(",
+						"          VendorID as long,",
+						"          tpep_pickup_datetime as timestamp,",
+						"          tpep_dropoff_datetime as timestamp,",
+						"          passenger_count as double,",
+						"          trip_distance as double,",
+						"          RatecodeID as double,",
+						"          store_and_fwd_flag as string,",
+						"          PULocationID as long,",
+						"          DOLocationID as long,",
+						"          payment_type as long,",
+						"          fare_amount as double,",
+						"          extra as double,",
+						"          mta_tax as double,",
+						"          tip_amount as double,",
+						"          tolls_amount as double,",
+						"          improvement_surcharge as double,",
+						"          total_amount as double,",
+						"          congestion_surcharge as double,",
+						"          airport_fee as integer",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: true,",
+						"     ignoreNoFilesFound: false,",
+						"     format: 'parquet') ~> source1",
+						"source1 derive(fare_amount = iif(fare_amount>10, \"fair\",\"loss\")) ~> derivedColumn1",
+						"derivedColumn1 sink(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     format: 'parquet',",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true) ~> sink1"
+					]
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/Parquet1')]",
+				"[concat(variables('factoryId'), '/datasets/target')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/pipeline1')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "Data flow1",
+						"type": "ExecuteDataFlow",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataflow": {
+								"referenceName": "dataflow1",
+								"type": "DataFlowReference",
+								"parameters": {},
+								"datasetParameters": {
+									"source1": {},
+									"sink1": {}
+								}
+							},
+							"staging": {},
+							"compute": {
+								"coreCount": 8,
+								"computeType": "General"
+							},
+							"traceLevel": "Fine"
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/dataflows/dataflow1')]"
+			]
+		}
+	]
+}
